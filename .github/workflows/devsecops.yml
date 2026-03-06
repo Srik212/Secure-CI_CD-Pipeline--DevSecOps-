@@ -2,9 +2,9 @@ name: DevSecOps Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/secure-ci-cd
@@ -34,10 +34,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # Auto-provided by GitHub
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}      # Your SonarCloud token
           SONAR_HOST_URL: https://sonarcloud.io
-        with:
-          args: >
-            -Dsonar.branch.name=main
-            -Dsonar.organization=${{ secrets.SONAR_ORG }}
+        
 
 # Job 2 - SCA + Code Scan: Snyk
   sca-snyk:
