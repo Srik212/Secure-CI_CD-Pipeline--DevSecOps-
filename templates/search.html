@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head><title>Search Results</title>
+<style>
+  body { font-family: sans-serif; padding: 2rem; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px; border: 1px solid #ddd; }
+  th { background: #2563eb; color: white; }
+</style>
+</head>
+<body>
+  <a href="/dashboard">← Back</a>
+  <!-- [VULN] Reflected XSS — raw query rendered without escaping -->
+  <h2>Search results for: {{ query|safe }}</h2>
+  <form action="/search" method="GET">
+    <input name="q" value="{{ query|safe }}" style="padding:6px;width:250px">
+    <button>Search</button>
+  </form>
+  <br>
+  <table>
+    <tr><th>ID</th><th>Name</th><th>Description</th><th>Qty</th><th>Price</th></tr>
+    {% for item in items %}
+    <tr>
+      <td>{{ item[0] }}</td>
+      <td>{{ item[1]|safe }}</td>
+      <td>{{ item[2]|safe }}</td>
+      <td>{{ item[3] }}</td>
+      <td>${{ item[4] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

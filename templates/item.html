@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head><title>Item Detail</title>
+<style>body { font-family: sans-serif; padding: 2rem; }</style>
+</head>
+<body>
+  <a href="/dashboard">← Back</a>
+  {% if item %}
+  <h2>{{ item[1]|safe }}</h2>   <!-- [VULN] Stored XSS -->
+  <p><strong>Description:</strong> {{ item[2]|safe }}</p>  <!-- [VULN] Stored XSS -->
+  <p><strong>Quantity:</strong> {{ item[3] }}</p>
+  <p><strong>Price:</strong> ${{ item[4] }}</p>
+  {% else %}
+  <p>Item not found.</p>
+  {% endif %}
+</body>
+</html>

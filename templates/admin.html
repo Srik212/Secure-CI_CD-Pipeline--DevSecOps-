@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head><title>Admin Panel</title>
+<style>
+  body { font-family: sans-serif; padding: 2rem; background: #f0f2f5; }
+  table { width: 100%; border-collapse: collapse; background: white; margin-bottom: 2rem; }
+  th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+  th { background: #dc2626; color: white; }
+  input, textarea { padding: 6px; width: 200px; margin: 4px; }
+  button { padding: 6px 12px; background: #2563eb; color: white; border: none; cursor: pointer; }
+  .danger { background: #dc2626; }
+</style>
+</head>
+<body>
+  <h2>🔧 Admin Dashboard</h2>
+  <a href="/dashboard">User View</a> | <a href="/debug">⚠️ Debug Info</a> | <a href="/logout">Logout</a>
+  <hr>
+
+  <h3>Add Inventory Item</h3>
+  <form action="/admin/add-item" method="POST">
+    <input name="name" placeholder="Item name" required>
+    <input name="quantity" placeholder="Quantity" type="number" required>
+    <input name="price" placeholder="Price" type="number" step="0.01" required>
+    <br>
+    <textarea name="description" placeholder="Description (HTML allowed)"></textarea>
+    <br>
+    <button type="submit">Add Item</button>
+  </form>
+  <hr>
+
+  <h3>All Inventory</h3>
+  <table>
+    <tr><th>ID</th><th>Name</th><th>Description</th><th>Qty</th><th>Price</th><th>Action</th></tr>
+    {% for item in items %}
+    <tr>
+      <td>{{ item[0] }}</td>
+      <td>{{ item[1]|safe }}</td>  <!-- [VULN] Stored XSS -->
+      <td>{{ item[2]|safe }}</td>  <!-- [VULN] Stored XSS -->
+      <td>{{ item[3] }}</td>
+      <td>${{ item[4] }}</td>
+      <td>
+        <form action="/admin/delete-item/{{ item[0] }}" method="POST" style="display:inline">
+          <button class="danger" onclick="return confirm('Delete?')">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <h3>All Users</h3>
+  <table>
+    <tr><th>ID</th><th>Username</th><th>Role</th><th>Email</th></tr>
+    {% for user in users %}
+    <tr>
+      <td>{{ user[0] }}</td>
+      <td>{{ user[1] }}</td>
+      <td>{{ user[2] }}</td>
+      <td>{{ user[3] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

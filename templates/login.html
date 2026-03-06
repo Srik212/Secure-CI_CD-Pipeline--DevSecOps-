@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head><title>Login — Inventory</title>
+<style>
+  body { font-family: sans-serif; display: flex; justify-content: center; margin-top: 80px; background: #f0f2f5; }
+  .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 320px; }
+  input { width: 100%; padding: 8px; margin: 6px 0 14px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+  button { width: 100%; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  .error { color: red; font-size: 0.9em; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h2>🏭 Inventory Login</h2>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    <form method="POST">
+      <label>Username</label>
+      <input type="text" name="username" required>
+      <label>Password</label>
+      <input type="password" name="password" required>
+      <button type="submit">Login</button>
+    </form>
+  </div>
+</body>
+</html>

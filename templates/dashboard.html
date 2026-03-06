@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head><title>Dashboard</title>
+<style>
+  body { font-family: sans-serif; padding: 2rem; background: #f0f2f5; }
+  table { width: 100%; border-collapse: collapse; background: white; }
+  th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+  th { background: #2563eb; color: white; }
+  nav a { margin-right: 1rem; color: #2563eb; }
+</style>
+</head>
+<body>
+  <nav>
+    <strong>👤 {{ username }}</strong> |
+    <a href="/search">Search</a>
+    <a href="/logout">Logout</a>
+  </nav>
+  <h2>📦 Inventory Dashboard</h2>
+  <form action="/search" method="GET">
+    <input name="q" placeholder="Search items..." style="padding:6px;width:250px">
+    <button type="submit">Search</button>
+  </form>
+  <br>
+  <table>
+    <tr><th>ID</th><th>Name</th><th>Description</th><th>Qty</th><th>Price</th><th>Detail</th></tr>
+    {% for item in items %}
+    <tr>
+      <td>{{ item[0] }}</td>
+      <td>{{ item[1]|safe }}</td>  <!-- [VULN] Stored XSS -->
+      <td>{{ item[2]|safe }}</td>  <!-- [VULN] Stored XSS -->
+      <td>{{ item[3] }}</td>
+      <td>${{ item[4] }}</td>
+      <td><a href="/item/{{ item[0] }}">View</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
