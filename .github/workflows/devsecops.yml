@@ -1,0 +1,182 @@
+name: DevSecOps Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/Secure-CI-CD:latest
+
+jobs:
+# Job 1 - SAST: SonarCloud Analysis
+  sast-sonarcloud:
+    name: "SAST — SonarCloud"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # SonarCloud needs full git history for blame info
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # Auto-provided by GitHub
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}      # Your SonarCloud token
+
+# Job 2 - SCA + Code Scan: Snyk
+  sca-snyk:
+    name: "SCA & Code Scan — Snyk"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Snyk — Dependency Scan (SCA)
+        uses: snyk/actions/python@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        continue-on-error: true     # Won't block pipeline — change to false to enforce
+
+      - name: Snyk — Code Scan (SAST layer)
+        uses: snyk/actions/python@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code test
+        continue-on-error: true
+
+      - name: Snyk Monitor (track on dashboard)
+        uses: snyk/actions/python@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: monitor
+        continue-on-error: true
+
+# Job 3 - Secret Scanning: Gitleaks
+  secret-scan:
+    name: "Secret Scanning — Gitleaks"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Run Gitleaks Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+# Job 4 - Docker Build & Push
+  docker-build:
+    name: "Docker Build & Push"
+    runs-on: ubuntu-latest
+    needs: [sast-sonarcloud, sca-snyk, secret-scan]   # Run after security scans
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image
+        run: docker build -t $IMAGE_NAME:${{ github.sha }} .
+
+      - name: Push image to Docker Hub
+        run: docker push $IMAGE_NAME:${{ github.sha }}
+
+      - name: Tag and push as latest
+        run: |
+          docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:latest
+
+# Job 5 - Container Scanning: Trivy + Snyk Container Scan
+  container-scan:
+    name: "Container Scan — Trivy + Snyk"
+    runs-on: ubuntu-latest
+    needs: docker-build
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Trivy — Container Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: sarif
+          output: trivy-report.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "0"            # Change to 1 to block on HIGH/CRITICAL findings
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-report.sarif
+
+      - name: Snyk — Container Scan
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          args: --severity-threshold=high
+        continue-on-error: true
+
+      - name: Upload Trivy report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-container-report
+          path: trivy-report.sarif
+
+# Job 6 - DAST: OWASP ZAP 
+  dast-zap:
+    name: "DAST — OWASP ZAP"
+    runs-on: ubuntu-latest
+    needs: docker-build
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Start app with Docker Compose
+        run: |
+          docker-compose up -d
+          sleep 20                  # Give DB + Flask time to fully start
+
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: "http://localhost:5000"
+          fail_action: false        # Change to true to block pipeline on findings
+          cmd_options: "-a"         # -a = include ajax spider for JS-heavy pages
+
+      - name: Upload ZAP HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-dast-report
+          path: report_html.html
+
+      - name: Tear down app
+        if: always()                # Always runs even if ZAP fails
+        run: docker-compose down
