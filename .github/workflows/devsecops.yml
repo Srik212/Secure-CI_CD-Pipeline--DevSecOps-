@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 env:
-  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/Secure-CI-CD:latest
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/secure-ci-cd
 
 jobs:
 # Job 1 - SAST: SonarCloud Analysis
